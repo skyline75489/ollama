@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"crypto/ed25519"
@@ -87,6 +88,74 @@ func CreateHandler(cmd *cobra.Command, args []string) error {
 				path = filepath.Join(filepath.Dir(filename), path)
 			}
 
+			fmt.Println("jozh open file modelFileDir: ", path)
+			info, _ := os.Stat(path)
+			if info != nil && info.IsDir() && c.Name == "model" {
+				modelAbsPath := path
+				fmt.Println("compress model folder to zip format")
+				modelFolderName := filepath.Base(modelAbsPath)
+				zipCompressedFilePath := filepath.Join(modelAbsPath, modelFolderName+".zip")
+				if _, err := os.Stat(zipCompressedFilePath); err == nil {
+					err := os.Remove(zipCompressedFilePath)
+					if err != nil {
+						return err
+					}
+				}
+
+				zipCompressedFile, err := os.Create(zipCompressedFilePath)
+				if err != nil {
+					return err
+				}
+				defer zipCompressedFile.Close()
+
+				zipWriter := zip.NewWriter(zipCompressedFile)
+				defer zipWriter.Close()
+
+				err = filepath.Walk(modelAbsPath, func(itemPath string, info os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+
+					if info.IsDir() || filepath.Ext(itemPath) == ".zip" {
+						return nil
+					}
+
+					zipInfo, err := zip.FileInfoHeader(info)
+					if err != nil {
+						return err
+					}
+
+					zipInfo.Name = filepath.Base(itemPath)
+					zipInfo.Method = zip.Deflate
+
+					w, err := zipWriter.CreateHeader(zipInfo)
+					if err != nil {
+						return err
+					}
+
+					file, err := os.Open(itemPath)
+					if err != nil {
+						return err
+					}
+					defer file.Close()
+
+					_, err = io.Copy(w, file)
+					if err != nil {
+						return err
+					}
+
+					fmt.Println("compress file " + filepath.Base(itemPath) + " to zip format")
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+
+				path = zipCompressedFilePath
+				zipWriter.Close()
+				zipCompressedFile.Close()
+			}
+
 			bin, err := os.Open(path)
 			if errors.Is(err, os.ErrNotExist) && c.Name == "model" {
 				continue
@@ -95,6 +164,13 @@ func CreateHandler(cmd *cobra.Command, args []string) error {
 			}
 			defer bin.Close()
 
+			fmt.Println("jozh open file modelFile: ", path)
+			stat, err := bin.Stat()
+			if err != nil {
+				return err
+			}
+			fmt.Println("jozh model file size: ", stat.Size())
+
 			hash := sha256.New()
 			if _, err := io.Copy(hash, bin); err != nil {
 				return err
@@ -102,6 +178,7 @@ func CreateHandler(cmd *cobra.Command, args []string) error {
 			bin.Seek(0, io.SeekStart)
 
 			digest := fmt.Sprintf("sha256:%x", hash.Sum(nil))
+			fmt.Println("jozh model file digest: ", digest)
 			if err = client.CreateBlob(cmd.Context(), digest, bin); err != nil {
 				return err
 			}

@@ -1,11 +1,15 @@
 package llm
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/jmorganca/ollama/api"
 	"github.com/jmorganca/ollama/gpu"
@@ -33,6 +37,24 @@ func New(workDir, model string, adapters, projectors []string, opts api.Options)
 	ggml, err := DecodeGGML(f)
 	if err != nil {
 		return nil, err
+	}
+
+	if _, ok := ggml.container.(*containerORT); ok {
+		// return nil, fmt.Errorf("invalid model type, containerORT")
+		info := gpu.GetGPUInfo()
+		opts.RopeFrequencyBase = 0.0
+		opts.RopeFrequencyScale = 0.0
+		if info.Library == "cpu" {
+			slog.Info("GPU not available, falling back to CPU")
+			info.Variant = gpu.GetCPUVariant()
+		}
+
+		extmodel := strings.Replace(model, "blobs", "ort_cache", 1)
+		err := extractOrtModel(model, extmodel)
+		if err != nil {
+			return nil, err
+		}
+		return newLlmServer(info, workDir, extmodel, adapters, projectors, opts)
 	}
 
 	if opts.NumCtx > int(ggml.NumCtx()) {
@@ -164,4 +186,66 @@ func newLlmServer(gpuInfo gpu.GpuInfo, workDir, model string, adapters, projecto
 	}
 
 	return nil, err2
+}
+
+func extractOrtModel(model string, extmodel string) error {
+	zipReader, err := zip.OpenReader(model)
+	if err != nil {
+		return err
+	}
+	defer zipReader.Close()
+
+	if _, err := os.Stat(extmodel); os.IsNotExist(err) {
+		err = os.MkdirAll(extmodel, 0755)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, f := range zipReader.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+
+		dstfilepath := filepath.Join(extmodel, f.Name)
+		slog.Info(fmt.Sprintf("Extracting file %s to %s", f.Name, dstfilepath))
+
+		var dstfile *os.File
+		dstfileinfo, err := os.Stat(dstfilepath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				dstfile, err = os.OpenFile(dstfilepath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+				if err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+		} else {
+			if dstfileinfo.Size() != int64(f.UncompressedSize64) {
+				os.Remove(dstfilepath)
+				dstfile, err = os.OpenFile(dstfilepath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+				if err != nil {
+					return err
+				}
+			} else {
+				continue
+			}
+		}
+
+		srcfile, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(dstfile, srcfile)
+		if err != nil {
+			return err
+		}
+
+		defer dstfile.Close()
+		defer srcfile.Close()
+	}
+
+	return nil
 }

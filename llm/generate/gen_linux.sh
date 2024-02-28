@@ -60,7 +60,7 @@ if [ -z "${OLLAMA_SKIP_CPU_GENERATE}" ]; then
     if [ -n "${OLLAMA_CUSTOM_CPU_DEFS}" ]; then
         echo "OLLAMA_CUSTOM_CPU_DEFS=\"${OLLAMA_CUSTOM_CPU_DEFS}\""
         CMAKE_DEFS="${OLLAMA_CUSTOM_CPU_DEFS} -DCMAKE_POSITION_INDEPENDENT_CODE=on ${CMAKE_DEFS}"
-        BUILD_DIR="${LLAMACPP_DIR}/build/linux/${ARCH}/cpu"
+        BUILD_DIR="${LLM_RUNTIME_DIR}/build/linux/${ARCH}/cpu"
         echo "Building custom CPU"
         build
         compress_libs
@@ -81,7 +81,7 @@ if [ -z "${OLLAMA_SKIP_CPU_GENERATE}" ]; then
             # CPU first for the default library, set up as lowest common denominator for maximum compatibility (including Rosetta)
             #
             CMAKE_DEFS="${COMMON_CPU_DEFS} -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_AVX512=off -DLLAMA_FMA=off -DLLAMA_F16C=off ${CMAKE_DEFS}"
-            BUILD_DIR="${LLAMACPP_DIR}/build/linux/${ARCH}/cpu"
+            BUILD_DIR="${LLM_RUNTIME_DIR}/build/linux/${ARCH}/cpu"
             echo "Building LCD CPU"
             build
             compress_libs
@@ -94,7 +94,7 @@ if [ -z "${OLLAMA_SKIP_CPU_GENERATE}" ]; then
             #
             init_vars
             CMAKE_DEFS="${COMMON_CPU_DEFS} -DLLAMA_AVX=on -DLLAMA_AVX2=off -DLLAMA_AVX512=off -DLLAMA_FMA=off -DLLAMA_F16C=off ${CMAKE_DEFS}"
-            BUILD_DIR="${LLAMACPP_DIR}/build/linux/${ARCH}/cpu_avx"
+            BUILD_DIR="${LLM_RUNTIME_DIR}/build/linux/${ARCH}/cpu_avx"
             echo "Building AVX CPU"
             build
             compress_libs
@@ -107,7 +107,7 @@ if [ -z "${OLLAMA_SKIP_CPU_GENERATE}" ]; then
             #
             init_vars
             CMAKE_DEFS="${COMMON_CPU_DEFS} -DLLAMA_AVX=on -DLLAMA_AVX2=on -DLLAMA_AVX512=off -DLLAMA_FMA=on -DLLAMA_F16C=on ${CMAKE_DEFS}"
-            BUILD_DIR="${LLAMACPP_DIR}/build/linux/${ARCH}/cpu_avx2"
+            BUILD_DIR="${LLM_RUNTIME_DIR}/build/linux/${ARCH}/cpu_avx2"
             echo "Building AVX2 CPU"
             build
             compress_libs
@@ -140,7 +140,7 @@ if [ -d "${CUDA_LIB_DIR}" ]; then
         CUDA_VARIANT=_v${CUDA_MAJOR}
     fi
     CMAKE_DEFS="-DLLAMA_CUBLAS=on -DLLAMA_CUDA_FORCE_MMQ=on -DCMAKE_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES} ${COMMON_CMAKE_DEFS} ${CMAKE_DEFS}"
-    BUILD_DIR="${LLAMACPP_DIR}/build/linux/${ARCH}/cuda${CUDA_VARIANT}"
+    BUILD_DIR="${LLM_RUNTIME_DIR}/build/linux/${ARCH}/cuda${CUDA_VARIANT}"
     EXTRA_LIBS="-L${CUDA_LIB_DIR} -lcudart -lcublas -lcublasLt -lcuda"
     build
 
@@ -184,7 +184,7 @@ if [ -d "${ROCM_PATH}" ]; then
     fi
     init_vars
     CMAKE_DEFS="${COMMON_CMAKE_DEFS} ${CMAKE_DEFS} -DLLAMA_HIPBLAS=on -DCMAKE_C_COMPILER=$ROCM_PATH/llvm/bin/clang -DCMAKE_CXX_COMPILER=$ROCM_PATH/llvm/bin/clang++ -DAMDGPU_TARGETS=$(amdGPUs) -DGPU_TARGETS=$(amdGPUs)"
-    BUILD_DIR="${LLAMACPP_DIR}/build/linux/${ARCH}/rocm${ROCM_VARIANT}"
+    BUILD_DIR="${LLM_RUNTIME_DIR}/build/linux/${ARCH}/rocm${ROCM_VARIANT}"
     EXTRA_LIBS="-L${ROCM_PATH}/lib -L/opt/amdgpu/lib/x86_64-linux-gnu/ -Wl,-rpath,${ROCM_PATH}/lib,-rpath,/opt/amdgpu/lib/x86_64-linux-gnu/ -lhipblas -lrocblas -lamdhip64 -lrocsolver -lamd_comgr -lhsa-runtime64 -lrocsparse -ldrm -ldrm_amdgpu"
     build
 

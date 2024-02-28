@@ -1,0 +1,31 @@
+# Ollama specific CMakefile to include in onnruntime-genai
+
+set(TARGET ort_ext_server)
+add_library(${TARGET} STATIC ../ext_server/ort_ext_server.cpp ../onnxruntime-genai)
+target_link_libraries(${TARGET} PRIVATE onnxruntime-genai)
+
+target_include_directories(${TARGET} PRIVATE ../onnxruntime-genai/ort/include)
+target_include_directories(${TARGET} PRIVATE ../onnxruntime-genai/src)
+target_include_directories(${TARGET} PRIVATE ../onnxruntime-genai/_deps/simdjson-src/include)
+
+target_link_directories(${TARGET} PRIVATE ${ORT_LIB_DIR})
+target_link_libraries(${TARGET} PRIVATE tokenizer sentencepiece simdjson ${ONNXRUNTIME_LIB})
+set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_compile_features(${TARGET} PRIVATE cxx_std_11)
+target_compile_definitions(${TARGET} PUBLIC LLAMA_SERVER_LIBRARY=1)
+
+target_sources(${TARGET} PRIVATE ../ext_server/json-builder.c)
+
+install(TARGETS ort_ext_server LIBRARY)
+
+if (CUDAToolkit_FOUND)
+    target_include_directories(${TARGET} PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+    if (WIN32)
+        target_link_libraries(${TARGET} PRIVATE nvml)
+    endif()
+endif()
+
+add_executable(ort_test ../ext_server/main.cpp)
+target_sources(ort_test PRIVATE ../ext_server/json-builder.c)
+target_link_directories(ort_test PRIVATE ${ORT_LIB_DIR})
+target_link_libraries(ort_test PRIVATE ort_ext_server onnxruntime-genai ${ONNXRUNTIME_LIB})
