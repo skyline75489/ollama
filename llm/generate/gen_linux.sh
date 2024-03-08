@@ -81,7 +81,7 @@ if [ -z "${OLLAMA_SKIP_CPU_GENERATE}" ]; then
             # CPU first for the default library, set up as lowest common denominator for maximum compatibility (including Rosetta)
             #
             CMAKE_DEFS="${COMMON_CPU_DEFS} -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_AVX512=off -DLLAMA_FMA=off -DLLAMA_F16C=off ${CMAKE_DEFS}"
-            BUILD_DIR="${LLM_RUNTIME_DIR}/build/linux/${ARCH}/cpu"
+            BUILD_DIR="${LLAMACPP_DIR}/build/linux/${ARCH}/cpu"
             echo "Building LCD CPU"
             build
             compress_libs
@@ -94,7 +94,7 @@ if [ -z "${OLLAMA_SKIP_CPU_GENERATE}" ]; then
             #
             init_vars
             CMAKE_DEFS="${COMMON_CPU_DEFS} -DLLAMA_AVX=on -DLLAMA_AVX2=off -DLLAMA_AVX512=off -DLLAMA_FMA=off -DLLAMA_F16C=off ${CMAKE_DEFS}"
-            BUILD_DIR="${LLM_RUNTIME_DIR}/build/linux/${ARCH}/cpu_avx"
+            BUILD_DIR="${LLAMACPP_DIR}/build/linux/${ARCH}/cpu_avx"
             echo "Building AVX CPU"
             build
             compress_libs
@@ -107,8 +107,17 @@ if [ -z "${OLLAMA_SKIP_CPU_GENERATE}" ]; then
             #
             init_vars
             CMAKE_DEFS="${COMMON_CPU_DEFS} -DLLAMA_AVX=on -DLLAMA_AVX2=on -DLLAMA_AVX512=off -DLLAMA_FMA=on -DLLAMA_F16C=on ${CMAKE_DEFS}"
-            BUILD_DIR="${LLM_RUNTIME_DIR}/build/linux/${ARCH}/cpu_avx2"
+            BUILD_DIR="${LLAMACPP_DIR}/build/linux/${ARCH}/cpu_avx2"
             echo "Building AVX2 CPU"
+            build
+            compress_libs
+        fi
+
+        if [ -z "${OLLAMA_CPU_TARGET}" -o "${OLLAMA_CPU_TARGET}" = "ort_cpu" ]; then
+        init_vars
+            CMAKE_DEFS="-DCMAKE_POSITION_INDEPENDENT_CODE=on ${CMAKE_DEFS}"
+            BUILD_DIR="${ORT_GENAI_DIR}/build/linux/${ARCH}/ort_cpu"
+            echo "Building ORT CPU"
             build
             compress_libs
         fi

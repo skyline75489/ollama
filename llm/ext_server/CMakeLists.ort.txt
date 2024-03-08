@@ -1,6 +1,6 @@
 # Ollama specific CMakefile to include in onnruntime-genai
 
-set(TARGET ort_ext_server)
+set(TARGET ext_server)
 add_library(${TARGET} STATIC ../ext_server/ort_ext_server.cpp ../onnxruntime-genai)
 target_link_libraries(${TARGET} PRIVATE onnxruntime-genai)
 
@@ -16,7 +16,7 @@ target_compile_definitions(${TARGET} PUBLIC LLAMA_SERVER_LIBRARY=1)
 
 target_sources(${TARGET} PRIVATE ../ext_server/json-builder.c)
 
-install(TARGETS ort_ext_server LIBRARY)
+install(TARGETS ext_server LIBRARY)
 
 if (CUDAToolkit_FOUND)
     target_include_directories(${TARGET} PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})

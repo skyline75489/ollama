@@ -15,17 +15,9 @@ init_vars() {
     LLAMACPP_DIR=../llama.cpp
     ORT_GENAI_DIR=../onnxruntime-genai
 
-    #LLM_RUNTIME="llama.cpp"
-    LLM_RUNTIME="onnxruntime-genai"
+    CMAKE_TARGETS="--target ext_server"
 
     CMAKE_DEFS=""
-    if [ $LLM_RUNTIME  = "llama.cpp" ]; then
-        LLM_RUNTIME_DIR=$LLAMACPP_DIR
-        CMAKE_TARGETS="--target ext_server"
-    else
-        LLM_RUNTIME_DIR=$ORT_GENAI_DIR
-        CMAKE_TARGETS="--target ort_test"
-    fi
     if echo "${CGO_CFLAGS}" | grep -- '-g' >/dev/null; then
         CMAKE_DEFS="-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=on -DLLAMA_GPROF=on -DLLAMA_SERVER_VERBOSE=on ${CMAKE_DEFS}"
     else
@@ -71,11 +63,8 @@ git_module_setup() {
 }
 
 apply_patches() {
-    if [ $LLM_RUNTIME = "llama.cpp" ]; then
-        apply_patches_llama_cpp
-    else
-        apply_patches_onnxruntime_genai
-    fi
+    apply_patches_llama_cpp
+    apply_patches_onnxruntime_genai
 }
 
 apply_patches_llama_cpp() {
@@ -109,12 +98,15 @@ apply_patches_onnxruntime_genai() {
 }
 
 build() {
-    cmake -S ${ORT_GENAI_DIR} -B ${BUILD_DIR} ${CMAKE_DEFS}
-    cmake --build ${BUILD_DIR} ${CMAKE_TARGETS} -j8
-    mkdir -p ${BUILD_DIR}/lib/
-    if [ $LLM_RUNTIME = "llama.cpp" ]; then
+    if [[ $BUILD_DIR =~ $LLAMACPP_DIR ]]; then
+        cmake -S ${LLAMACPP_DIR} -B ${BUILD_DIR} ${CMAKE_DEFS}
+        cmake --build ${BUILD_DIR} ${CMAKE_TARGETS} -j8
+        mkdir -p ${BUILD_DIR}/lib/
         build_llama_cpp
-    else
+    elif [[ $BUILD_DIR =~ $ORT_GENAI_DIR ]]; then
+        cmake -S ${ORT_GENAI_DIR} -B ${BUILD_DIR} ${CMAKE_DEFS}
+        cmake --build ${BUILD_DIR} ${CMAKE_TARGETS} -j8
+        mkdir -p ${BUILD_DIR}/lib/
         build_onnxruntime_genai
     fi
 }
@@ -131,14 +123,17 @@ build_llama_cpp() {
 }
 
 build_onnxruntime_genai() {
+    cp ${BUILD_DIR}/libonnxruntime-genai.so ${BUILD_DIR}/lib/
+    cp ${BUILD_DIR}/libonnxruntime.so.1.17.0 ${BUILD_DIR}/lib/
+
     g++ -fPIC -g -shared -o ${BUILD_DIR}/lib/libext_server.${LIB_EXT} \
         ${GCC_ARCH} \
-        ${WHOLE_ARCHIVE} ${BUILD_DIR}/libort_ext_server.a ${NO_WHOLE_ARCHIVE} \
+        ${WHOLE_ARCHIVE} ${BUILD_DIR}/libext_server.a ${NO_WHOLE_ARCHIVE} \
         ${BUILD_DIR}/libonnxruntime-genai.so \
+        ${BUILD_DIR}/libonnxruntime.so.1.17.0 \
         -Wl,-rpath,\$ORIGIN \
         -lpthread -ldl -lm \
         ${EXTRA_LIBS}
-    cp ${BUILD_DIR}/libonnxruntime-genai.so ${BUILD_DIR}/lib/
 }
 
 compress_libs() {
@@ -146,6 +141,7 @@ compress_libs() {
     pids=""
     rm -rf ${BUILD_DIR}/lib/*.${LIB_EXT}*.gz
     for lib in ${BUILD_DIR}/lib/*.${LIB_EXT}* ; do
+        echo "Compressing" $lib
         gzip --best -f ${lib} &
         pids+=" $!"
     done

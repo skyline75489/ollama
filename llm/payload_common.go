@@ -118,7 +118,7 @@ func nativeInit(workdir string) error {
 		os.Setenv("GGML_METAL_PATH_RESOURCES", workdir)
 	}
 
-	libs, err := extractDynamicLibs(workdir, "onnxruntime-genai/build/*/*/*/lib/*")
+	libs, err := extractDynamicLibs(workdir, "*/build/*/*/*/lib/*")
 	if err != nil {
 		if err == payloadMissing {
 			slog.Info(fmt.Sprintf("%s", payloadMissing))
