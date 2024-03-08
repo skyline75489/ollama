@@ -59,26 +59,20 @@ struct ort_genai_server_context {
 
     std::string generate(const std::string & prompt) {
         std::cout << "generate for prompt: " << prompt << std::endl;
+        std::cout << "prompt length: " << prompt.size() << std::endl;
         auto search_params = Generators::GeneratorParams(*model);
         auto input_ids = tokenize(prompt);
-        for (auto& input_id : input_ids) {
-          std::cout << input_id << std::endl;
-        } 
 
+        std::cout << "token length: " << input_ids.size() << std::endl;
+        
         search_params.input_ids = input_ids;
         search_params.max_length = 50;
         search_params.batch_size = 1;
         search_params.sequence_length = input_ids.size();
 
-        for (auto& input_id : search_params.input_ids) {
-          std::cout << input_id << std::endl;
-        } 
-
-        std::cout << "tokenize ok" << std::endl;
-
         auto result = Generators::Generate(*model, search_params);
       
-        std::cout << "Generate ok" << prompt << std::endl;
+        std::cout << "Generate finished" <<  std::endl;
 
         return detokenize(result[0]);
     }
@@ -99,8 +93,11 @@ OrtEnv& GetOrtEnv() {
 
 
 void llama_server_init(ext_server_params *sparams, ext_server_resp_t *err) {
+  assert(sparams != nullptr && sparams->model != nullptr);
+
     auto provider_options = Generators::GetDefaultProviderOptions(Generators::DeviceType::CPU);
-    Generators::Model* model = Generators::CreateModel(::GetOrtEnv(), sparams->model, &provider_options).release();
+    OrtEnv& env = ::GetOrtEnv();
+    Generators::Model* model = Generators::CreateModel(env, sparams->model, &provider_options).release();
 
     ort_genai = new ort_genai_server_context;
     ort_genai->initialize();
@@ -264,5 +261,5 @@ void llama_server_release_task_result(ext_server_task_result_t *result) {
 }
 
 void llama_server_completion_cancel(const int task_id, ext_server_resp_t *err) {
-  assert(llama != NULL && err != NULL);
+  assert(ort_genai != NULL && err != NULL);
 }

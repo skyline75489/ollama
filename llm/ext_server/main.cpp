@@ -8,14 +8,14 @@
 #include "ext_server.h"
 #include "json-builder.h"
 
-int main() {
+int main(int argc, char** argv) {
     ext_server_params_t server_param = {
         .model = "/home/skyline/Projects/ollama/llm/onnxruntime-genai/phi2"
     };
     
     json_value * result = json_object_new(0);
 
-    json_value * str = json_string_new("Hello");
+    json_value * str = json_string_new(argv[1]);
     json_object_push(result, "prompt", str);
 
     char * json_req = (char *)malloc(json_measure(result));
