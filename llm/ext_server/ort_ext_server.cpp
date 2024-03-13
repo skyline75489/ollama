@@ -66,7 +66,7 @@ struct ort_genai_server_context {
         std::cout << "token length: " << input_ids.size() << std::endl;
         
         search_params.input_ids = input_ids;
-        search_params.max_length = 50;
+        search_params.search.max_length = 50;
         search_params.batch_size = 1;
         search_params.sequence_length = input_ids.size();
 
@@ -95,9 +95,7 @@ OrtEnv& GetOrtEnv() {
 void llama_server_init(ext_server_params *sparams, ext_server_resp_t *err) {
   assert(sparams != nullptr && sparams->model != nullptr);
 
-    auto provider_options = Generators::GetDefaultProviderOptions(Generators::DeviceType::CPU);
-    OrtEnv& env = ::GetOrtEnv();
-    Generators::Model* model = Generators::CreateModel(env, sparams->model, &provider_options).release();
+    Generators::Model* model = Generators::CreateModel(::GetOrtEnv(), sparams->model).release();
 
     ort_genai = new ort_genai_server_context;
     ort_genai->initialize();
